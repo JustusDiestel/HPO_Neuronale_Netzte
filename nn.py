@@ -1,10 +1,84 @@
 import torch
-import data
+from torch import nn
+from torch.utils.data import TensorDataset, DataLoader
+from data import X_train_df, y_train, X_test_df, y_test, K
+
+X_train = torch.tensor(X_train_df.values, dtype=torch.float32)
+X_test  = torch.tensor(X_test_df.values, dtype=torch.float32)
+y_train = torch.tensor(y_train.values, dtype=torch.long)
+y_test  = torch.tensor(y_test.values, dtype=torch.long)
+
+train_dataset = TensorDataset(X_train, y_train)
+test_dataset = TensorDataset(X_test, y_test)
+
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+model = nn.Sequential(
+    nn.Linear(561, 128),
+    nn.ReLU(),
+    nn.Linear(128, K)
+)
+
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 
-train_tensor = torch.as_tensor(data.get_train_data())
-test_tensor = torch.as_tensor(data.get_test_data())
-train_result_tensor = torch.as_tensor(data.get_train_result())
-test_result_tensor = torch.as_tensor(data.get_test_result())
 
 
+
+
+
+
+num_epochs = 20
+
+for epoch in range(num_epochs):
+    # ===== Training =====
+    model.train()
+    train_loss = 0.0
+    correct = 0
+    total = 0
+
+    for xb, yb in train_loader:
+        optimizer.zero_grad()
+
+        logits = model(xb)
+        loss = criterion(logits, yb)
+
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.item() * xb.size(0)
+
+        _, preds = torch.max(logits, dim=1)
+        correct += (preds == yb).sum().item()
+        total += yb.size(0)
+
+    train_loss /= total
+    train_acc = correct / total
+
+    # ===== Evaluation =====
+    model.eval()
+    test_loss = 0.0
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for xb, yb in test_loader:
+            logits = model(xb)
+            loss = criterion(logits, yb)
+
+            test_loss += loss.item() * xb.size(0)
+
+            _, preds = torch.max(logits, dim=1)
+            correct += (preds == yb).sum().item()
+            total += yb.size(0)
+
+    test_loss /= total
+    test_acc = correct / total
+
+    print(
+        f"Epoch {epoch+1:02d}/{num_epochs} | "
+        f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | "
+        f"Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}"
+    )

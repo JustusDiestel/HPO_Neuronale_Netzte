@@ -1,36 +1,25 @@
 import kagglehub
 import pandas as pd
 from pathlib import Path
-from pandas import Series
-# ich lade hier die Daten aus dem Datensatz rein.
-# die Daten sind bereits bereinigt un in train und data unterteilt - keine standardisierung und so notwendig
+
 
 path = kagglehub.dataset_download("uciml/human-activity-recognition-with-smartphones")
-
-print("Path to dataset files:", path)
-
-
-
 base_path = Path(path)
-train_data = pd.read_csv(base_path / "train.csv")
-test_data = pd.read_csv(base_path / "test.csv")
 
-test_result = test_data["Activity"]
-train_result = train_data["Activity"]
-test_data = test_data.drop(columns=["Activity", "subject"])
-train_data = train_data.drop(columns=["Activity", "subject"])
+train_df = pd.read_csv(base_path / "train.csv")
+test_df  = pd.read_csv(base_path / "test.csv")
 
-print(test_data.head())
+y_train_raw = train_df["Activity"]
+y_test_raw  = test_df["Activity"]
 
+X_train_df = train_df.drop(columns=["Activity", "subject"])
+X_test_df  = test_df.drop(columns=["Activity", "subject"])
 
-def get_test_data() -> pd.DataFrame:
-    return test_data
+# müssen wir noch in ganze zahlen umwandeln für tensor
+y_all = pd.concat([y_train_raw, y_test_raw], axis=0).astype("category")
+codes = y_all.cat.codes
+K = len(y_all.cat.categories)
 
-def get_test_result() -> Series:
-    return test_result
+y_train = codes.iloc[:len(y_train_raw)]
+y_test  = codes.iloc[len(y_train_raw):]
 
-def get_train_data() -> pd.DataFrame:
-    return train_data
-
-def get_train_result() -> Series:
-    return train_result
