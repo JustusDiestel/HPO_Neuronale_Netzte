@@ -3,6 +3,8 @@ from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 from data import X_train_df, y_train, X_test_df, y_test, K
 
+torch.manual_seed(0)
+
 X_train = torch.tensor(X_train_df.values, dtype=torch.float32)
 X_test  = torch.tensor(X_test_df.values, dtype=torch.float32)
 y_train = torch.tensor(y_train.values, dtype=torch.long)
@@ -15,8 +17,12 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 model = nn.Sequential(
-    nn.Linear(561, 128),
+    nn.Linear(561, 256),
     nn.ReLU(),
+    nn.Dropout(0.3),
+    nn.Linear(256, 128),
+    nn.ReLU(),
+    nn.Dropout(0.3),
     nn.Linear(128, K)
 )
 
@@ -39,20 +45,20 @@ for epoch in range(num_epochs):
     correct = 0
     total = 0
 
-    for xb, yb in train_loader:
+    for x, y in train_loader:
         optimizer.zero_grad()
 
-        logits = model(xb)
-        loss = criterion(logits, yb)
+        logits = model(x)
+        loss = criterion(logits, y)
 
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.item() * xb.size(0)
+        train_loss += loss.item() * x.size(0)
 
         _, preds = torch.max(logits, dim=1)
-        correct += (preds == yb).sum().item()
-        total += yb.size(0)
+        correct += (preds == y).sum().item()
+        total += y.size(0)
 
     train_loss /= total
     train_acc = correct / total
@@ -64,15 +70,15 @@ for epoch in range(num_epochs):
     total = 0
 
     with torch.no_grad():
-        for xb, yb in test_loader:
-            logits = model(xb)
-            loss = criterion(logits, yb)
+        for x, y in test_loader:
+            logits = model(x)
+            loss = criterion(logits, y)
 
-            test_loss += loss.item() * xb.size(0)
+            test_loss += loss.item() * x.size(0)
 
             _, preds = torch.max(logits, dim=1)
-            correct += (preds == yb).sum().item()
-            total += yb.size(0)
+            correct += (preds == y).sum().item()
+            total += y.size(0)
 
     test_loss /= total
     test_acc = correct / total
