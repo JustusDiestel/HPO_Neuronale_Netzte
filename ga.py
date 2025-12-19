@@ -3,10 +3,10 @@ import random
 import torch
 
 from nn import do_nn_training
-
+from plotting import plot_data
 
 torch.manual_seed(42)
-random.seed(42)
+
 
 
 search_space = {
@@ -95,11 +95,13 @@ def mutate(individual, mutation_rate):
 
 
 def genetic_algorithm(
+    visualize_data,
     pop_size=10,
     generations=10,
     tournament_size=3,
     mutation_rate=0.1,
-    elitism=1
+    elitism=1,
+
 ):
     population = create_population(pop_size)
 
@@ -121,13 +123,25 @@ def genetic_algorithm(
         population = new_population
         best = max(population, key=lambda x: x[1])
         print(f"Generation {gen+1}: Best Fitness = {best[1]:.4f}")
-
+        visualize_data.append((gen+1, best[1]))
     return max(population, key=lambda x: x[1])
 
 
 
 # Start
 # =========================
-best_individual, best_fitness = genetic_algorithm()
+visualize_data = []
+best_individual, best_fitness = genetic_algorithm(visualize_data)
+
+generations = [x for x, _ in visualize_data]
+accuracies  = [y for _, y in visualize_data]
+
+plot_data(
+    generations,
+    accuracies,
+    title="GA NN Hyperparameter Optimization",
+    xlabel="Generation",
+    ylabel="Accuracy"
+)
 print("\nBest Individual:", best_individual)
 print("Best Fitness:", best_fitness)
