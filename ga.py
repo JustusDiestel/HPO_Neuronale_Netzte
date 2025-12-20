@@ -96,8 +96,8 @@ def mutate(individual, mutation_rate):
 
 def genetic_algorithm(
     visualize_data,
-    pop_size=10,
-    generations=10,
+    pop_size=30,
+    generations=20,
     tournament_size=3,
     mutation_rate=0.1,
     elitism=1,
