@@ -1,31 +1,25 @@
 import math
 import random
+import time
+
 import torch
+import pandas as pd
 
-from data import X_train_df, y_train, K, y_test
+from data import X_train_df, X_test_df, y_train, K, y_test
 from nn import do_nn_training
-from plotting import plot_data
+from plotting import plot_best_accuracy, plot_avg_accuracy, plot_accuracy_comparison, plot_accuracy_vs_runtime
 import numpy as np
+from config import SEED
 
-SEED = 42
+from scikitBenchmark import SklearnBenchmark
+
+
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
 fitness_cache = {}
 
-
-class X_val_df:
-    pass
-
-
-dataset = {
-    "X_train": X_train_df,
-    "y_train": y_train,
-    "X_val": X_val_df,
-    "y_val": y_test,
-    "num_classes": K
-}
 
 
 search_space = {
@@ -138,7 +132,7 @@ def mutate(individual, mutation_rate):
 def genetic_algorithm(
     visualize_data,
     pop_size=30,
-    generations=2,
+    generations=10,
     tournament_size=3,
     mutation_rate=0.1,
     elitism=1,
@@ -181,21 +175,77 @@ def genetic_algorithm(
 
 
 
-# Start
-visualize_data = []
-best_individual, best_fitness = genetic_algorithm(visualize_data)
+if __name__=="__main__":
+    visualize_data = []
+    benchmark_results = []
+    start_time = time.perf_counter()
 
-generations = [x for x, _, _ in visualize_data]
-best_acc    = [y for _, y, _ in visualize_data]
-avg_acc     = [z for _, _, z in visualize_data]
+    best_individual, best_fitness = genetic_algorithm(visualize_data)
 
-plot_data(
-    generations,
-    best_acc,
-    avg_acc,
-    title="GA NN Hyperparameter Optimization",
-    xlabel="Generation",
-    ylabel="Accuracy"
-)
-print("\nBest Individual:", best_individual)
-print("Best Fitness:", best_fitness)
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Time: %.2f seconds" % elapsed_time)
+
+    benchmark_results.append({
+        "method": "GA (NN)",
+        "accuracy": best_fitness,
+        "runtime": elapsed_time
+    })
+
+    generations = [x for x, _, _ in visualize_data]
+    best_acc    = [y for _, y, _ in visualize_data]
+    avg_acc     = [z for _, _, z in visualize_data]
+
+
+    print("\nBest Individual:", best_individual)
+    print("Best Fitness:", best_fitness)
+
+    sk_benchmark = SklearnBenchmark(
+        X_train_df,
+        y_train,
+        X_test_df,
+        y_test
+    )
+
+    sk_results = sk_benchmark.run()
+
+    for name, res in sk_results.items():
+        benchmark_results.append({
+            "method": name,
+            "accuracy": res["accuracy"],
+            "runtime": res["runtime"]
+        })
+
+    df_results = pd.DataFrame(benchmark_results)
+    print(df_results)
+    df_results.to_csv("benchmark_results.csv", index=False)
+
+    plot_best_accuracy(
+        generations,
+        best_acc,
+        title="Best Accuracy per Generation (GA NN)",
+        xlabel="Generation",
+        ylabel="Accuracy",
+        save_path="best_accuracy_ga_nn.png"
+    )
+    plot_avg_accuracy(
+        generations,
+        avg_acc,
+        title="Average Accuracy per Generation (GA NN)",
+        xlabel="Generation",
+        ylabel="Accuracy",
+        save_path="avg_accuracy_ga_nn.png"
+    )
+    plot_accuracy_comparison(
+        df_results["method"].tolist(),
+        df_results["accuracy"].tolist(),
+        title="Accuracy Comparison",
+        ylabel="Accuracy",
+        save_path="accuracy_comparison.png"
+    )
+    plot_accuracy_vs_runtime(
+        df_results["runtime"].tolist(),
+        df_results["accuracy"].tolist(),
+        title="Accuracy vs. Runtime",
+        save_path="accuracy_vs_runtime.png"
+    )
