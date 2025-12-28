@@ -224,28 +224,27 @@ if __name__=="__main__":
         generations,
         best_acc,
         title="Best Accuracy per Generation (GA NN)",
-        xlabel="Generation",
-        ylabel="Accuracy",
-        save_path="best_accuracy_ga_nn.png"
+        filename="best_accuracy_ga_nn.png"
     )
+
     plot_avg_accuracy(
         generations,
         avg_acc,
         title="Average Accuracy per Generation (GA NN)",
-        xlabel="Generation",
-        ylabel="Accuracy",
-        save_path="avg_accuracy_ga_nn.png"
+        filename="avg_accuracy_ga_nn.png"
     )
+
     plot_accuracy_comparison(
         df_results["method"].tolist(),
         df_results["accuracy"].tolist(),
         title="Accuracy Comparison",
-        ylabel="Accuracy",
-        save_path="accuracy_comparison.png"
+        filename="accuracy_comparison.png"
     )
+
     plot_accuracy_vs_runtime(
         df_results["runtime"].tolist(),
         df_results["accuracy"].tolist(),
+        df_results["method"].tolist(),
         title="Accuracy vs. Runtime",
-        save_path="accuracy_vs_runtime.png"
+        filename="accuracy_vs_runtime.png"
     )
