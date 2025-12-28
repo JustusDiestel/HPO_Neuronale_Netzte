@@ -2,6 +2,9 @@ import math
 import random
 import time
 
+import optuna
+
+from optunaBenchmark import optuna_objective
 import torch
 import pandas as pd
 
@@ -9,7 +12,7 @@ from data import X_train_df, X_test_df, y_train, K, y_test
 from nn import do_nn_training
 from plotting import plot_best_accuracy, plot_avg_accuracy, plot_accuracy_comparison, plot_accuracy_vs_runtime
 import numpy as np
-from config import SEED
+from config import SEED, PARAM_NAMES
 
 from scikitBenchmark import SklearnBenchmark
 
@@ -178,6 +181,7 @@ def genetic_algorithm(
 if __name__=="__main__":
     visualize_data = []
     benchmark_results = []
+    best_params = []
     start_time = time.perf_counter()
 
     best_individual, best_fitness = genetic_algorithm(visualize_data)
@@ -191,6 +195,49 @@ if __name__=="__main__":
         "accuracy": best_fitness,
         "runtime": elapsed_time
     })
+    ga_best_params = dict(zip(PARAM_NAMES, best_individual))
+    best_params.append(ga_best_params)
+
+    start_time = time.perf_counter()
+
+    study = optuna.create_study(
+        direction="maximize",
+        sampler=optuna.samplers.TPESampler(seed=SEED)
+    )
+
+    study.optimize(
+        optuna_objective,
+        n_trials=30,  # fairer Vergleich z.B. zu ~30 Fitness-Auswertungen im GA
+        show_progress_bar=True
+    )
+
+    elapsed_time = time.perf_counter() - start_time
+    best_optuna_acc = study.best_value
+    best_optuna_params = study.best_params
+
+    print("[Optuna] Best Accuracy:", best_optuna_acc)
+    print("[Optuna] Best Params:", best_optuna_params)
+    print("[Optuna] Runtime: %.2f seconds" % elapsed_time)
+
+    benchmark_results.append({
+        "method": "Optuna (NN)",
+        "accuracy": best_optuna_acc,
+        "runtime": elapsed_time
+    })
+    best_params.append(best_optuna_params)
+
+    rows = []
+
+    for param in PARAM_NAMES:
+        rows.append({
+            "parameter": param,
+            "GA": ga_best_params.get(param),
+            "Optuna": best_optuna_params.get(param),
+        })
+
+    df_params = pd.DataFrame(rows)
+    print(df_params)
+    df_params.to_csv("results/best_hyperparameters.csv", index=False)
 
     generations = [x for x, _, _ in visualize_data]
     best_acc    = [y for _, y, _ in visualize_data]

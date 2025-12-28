@@ -1,0 +1,12 @@
+parameter,GA,Optuna
+num_layers,3,3
+base_units,32,32
+width_pattern,decreasing,increasing
+activation,tanh,tanh
+learning_rate,9.540418265608071e-05,0.00039527568389191055
+optimizer,adam,adam
+batch_size,16,128
+dropout_rate,0.33834974371145565,0.41123202530048153
+l2_weight_decay,0.008921795677048453,0.00806773160906889
+scaler,standard,none
+epochs,85,61
