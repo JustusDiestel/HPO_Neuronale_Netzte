@@ -18,7 +18,8 @@ def do_nn_training(individual):
     batch_size    = individual[6]
     dropout_rate  = individual[7]
     weight_decay  = individual[8]
-    scaler_type   = individual[9]
+   # scaler_type   = individual[9]  Bei dem verwendeten Datensatz nicht nötig da er bereits skaliert ist
+    scaler_type = "none"
     num_epochs    = int(individual[10])
 
     #Datenvorbereitung
