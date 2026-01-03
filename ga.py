@@ -150,7 +150,7 @@ def population_convergence(population):
 def genetic_algorithm(
     visualize_data,
     pop_size=30,
-    generations=5,
+    generations=10,
     tournament_size=3,
     mutation_rate=0.1,
     elitism=1,
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     # =====================
     df_results = pd.DataFrame(benchmark_results)
     print(df_results)
-    df_results.to_csv("benchmark_results.csv", index=False)
+    df_results.to_csv("results/benchmark_results.csv", index=False)
 
     generations = [g for g, _, _, _ in visualize_data]
     best_acc    = [b for _, b, _, _ in visualize_data]
