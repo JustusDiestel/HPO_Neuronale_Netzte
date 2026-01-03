@@ -20,6 +20,9 @@ y_all = pd.concat([y_train_raw, y_test_raw], axis=0).astype("category")
 codes = y_all.cat.codes
 K = len(y_all.cat.categories)
 
+class_names = y_all.cat.categories.tolist()
+
 y_train = codes.iloc[:len(y_train_raw)]
 y_test  = codes.iloc[len(y_train_raw):]
+
 
