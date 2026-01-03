@@ -19,7 +19,8 @@ def optuna_objective(trial):
         trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
         trial.suggest_float("dropout_rate", 0.0, 0.5),
         trial.suggest_float("l2_weight_decay", 0.0, 1e-2),
-        trial.suggest_categorical("scaler", ["standard", "minmax", "none"]),
+        #trial.suggest_categorical("scaler", ["standard", "minmax", "none"]), # Bei dem verwendeten Datensatz nicht nötig da er bereits skaliert ist
+        trial.suggest_categorical("scaler", ["none"]),
         trial.suggest_int("epochs", 10, 100),
     ]
 

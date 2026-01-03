@@ -6,13 +6,16 @@ import torch
 import pandas as pd
 import numpy as np
 
-from data import X_train_df, X_test_df, y_train, y_test, K
+from data import X_train_df, X_test_df, y_train, y_test, K, class_names
 from nn import do_nn_training
 from plotting import (
     plot_best_accuracy,
     plot_avg_accuracy,
     plot_accuracy_comparison,
     plot_accuracy_vs_runtime,
+    export_hpo_comparison_csv,
+    create_confusion_matrix_plot,
+    plot_convergence,
 )
 from config import SEED, PARAM_NAMES
 from optunaBenchmark import optuna_objective
@@ -196,6 +199,9 @@ def genetic_algorithm(
     return population[0]
 
 
+
+
+
 # =====================
 # Main
 # =====================
@@ -208,6 +214,19 @@ if __name__ == "__main__":
     start_time = time.perf_counter()
     best_individual, best_fitness = genetic_algorithm(visualize_data)
     elapsed_time = time.perf_counter() - start_time
+    ga_best_ind_per_generation = []
+    df_best_individuals_ga = pd.DataFrame(columns=["generation", "best_accuracy", "avg_accuracy", "convergence"])
+
+    for i in range(len(visualize_data)):
+        gen, best_acc, avg_accuracy, convergence = visualize_data[i]
+        ga_best_ind_per_generation.append({
+            "generation": gen,
+            "best_accuracy": best_acc,
+            "avg_accuracy": avg_accuracy,
+            "convergence": convergence
+        })
+    df_best_individuals_ga.to_csv("results/best_individuals_per_generation.csv", index=False)
+
 
     benchmark_results.append({
         "method": "GA (NN)",
@@ -256,6 +275,32 @@ if __name__ == "__main__":
     # =====================
     # Ergebnisse & Plots
     # =====================
+
+    create_confusion_matrix_plot(
+        y_true=y_test,
+        y_pred=do_nn_training(
+            best_individual,
+            return_predictions=True,
+            train_final_model=True
+        ),
+        class_names= class_names,
+    )
+
+    plot_convergence(
+        visualize_data=visualize_data,
+    )
+
+
+    df_hpo = export_hpo_comparison_csv(
+        ga_individual=best_individual,
+        ga_fitness=best_fitness,
+        optuna_trial=study.best_trial,
+        param_names=PARAM_NAMES,
+        path="results/hpo_best_comparison.csv"
+    )
+
+    df_comp_best_params = pd.DataFrame(best_params)
+
     df_results = pd.DataFrame(benchmark_results)
     print(df_results)
     df_results.to_csv("results/benchmark_results.csv", index=False)
