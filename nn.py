@@ -3,10 +3,14 @@ from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import data
-from data import X_train_df, X_test_df, K
+from data import X_train_df, X_val_df, X_test_df, K
 
 
-def do_nn_training(individual):
+def do_nn_training(
+    individual,
+    return_predictions=False,
+    train_final_model=False,
+):
 
     # === Hyperparameter ===
     num_layers    = individual[0]
@@ -24,15 +28,18 @@ def do_nn_training(individual):
 
     #Datenvorbereitung
     X_train = X_train_df.values
+    X_val   = X_val_df.values
     X_test  = X_test_df.values
 
     if scaler_type == "standard":
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
+        X_val   = scaler.transform(X_val)
         X_test  = scaler.transform(X_test)
     elif scaler_type == "minmax":
         scaler = MinMaxScaler()
         X_train = scaler.fit_transform(X_train)
+        X_val   = scaler.transform(X_val)
         X_test  = scaler.transform(X_test)
     elif scaler_type == "none":
         pass
@@ -40,15 +47,17 @@ def do_nn_training(individual):
         raise ValueError("Unknown scaler")
 
     X_train = torch.tensor(X_train, dtype=torch.float32)
+    X_val   = torch.tensor(X_val, dtype=torch.float32)
     X_test  = torch.tensor(X_test, dtype=torch.float32)
     y_train = torch.tensor(data.y_train.values, dtype=torch.long)
+    y_val   = torch.tensor(data.y_val.values, dtype=torch.long)
     y_test  = torch.tensor(data.y_test.values, dtype=torch.long)
 
     train_ds = TensorDataset(X_train, y_train)
-    test_ds  = TensorDataset(X_test, y_test)
+    val_ds   = TensorDataset(X_val, y_val)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    test_loader  = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+    val_loader   = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
 
     #Modellaufbau
     layers = []
@@ -115,23 +124,30 @@ def do_nn_training(individual):
         train_loss /= total
         train_acc = correct / total
 
-        # ---- Evaluation ----
+        # ---- Validation ----
         model.eval()
         correct = 0
         total = 0
 
         with torch.no_grad():
-            for x, y in test_loader:
+            for x, y in val_loader:
                 correct += (model(x).argmax(dim=1) == y).sum().item()
                 total += y.size(0)
 
-        test_acc = correct / total
+        val_acc = correct / total
 
         print(
             f"Epoch {epoch + 1:02d}/{num_epochs} | "
             f"Train Loss: {train_loss:.4f}, "
             f"Train Acc: {train_acc:.4f} | "
-            f"Test Acc: {test_acc:.4f}"
+            f"Val Acc: {val_acc:.4f}"
         )
 
-    return correct / total
+    if return_predictions:
+        model.eval()
+        with torch.no_grad():
+            logits = model(torch.tensor(X_test, dtype=torch.float32))
+            y_pred = logits.argmax(dim=1)
+        return y_pred.numpy()
+
+    return val_acc

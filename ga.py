@@ -6,7 +6,7 @@ import torch
 import pandas as pd
 import numpy as np
 
-from data import X_train_df, X_test_df, y_train, y_test, K, class_names
+from data import X_train_df, X_val_df, X_test_df, y_train, y_val, y_test, K, class_names
 from nn import do_nn_training
 from plotting import (
     plot_best_accuracy,
@@ -22,9 +22,7 @@ from optunaBenchmark import optuna_objective
 from scikitBenchmark import SklearnBenchmark
 
 
-# =====================
 # Reproduzierbarkeit
-# =====================
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
@@ -32,9 +30,8 @@ torch.manual_seed(SEED)
 fitness_cache = {}
 
 
-# =====================
+
 # Suchraum
-# =====================
 search_space = {
     'num_layers': {'type': 'int', 'bounds': [1, 4]},
     'base_units': {'type': 'int', 'choices': [32, 64, 128]},
@@ -50,9 +47,8 @@ search_space = {
 }
 
 
-# =====================
+
 # GA-Hilfsfunktionen
-# =====================
 def create_individual():
     a, b = search_space['learning_rate']['bounds']
     return [
@@ -70,6 +66,7 @@ def create_individual():
     ]
 
 
+ # Fitness is defined as validation accuracy returned by do_nn_training
 def evaluate_fitness(individual, runs=3):
     key = tuple(individual)
     if key in fitness_cache:
@@ -147,9 +144,9 @@ def population_convergence(population):
     return sum(freqs) / num_genes
 
 
-# =====================
+
 # Genetischer Algorithmus
-# =====================
+
 def genetic_algorithm(
     visualize_data,
     pop_size=30,
@@ -202,9 +199,9 @@ def genetic_algorithm(
 
 
 
-# =====================
+
 # Main
-# =====================
+
 if __name__ == "__main__":
     visualize_data = []
     benchmark_results = []
@@ -272,9 +269,8 @@ if __name__ == "__main__":
             "runtime": res["runtime"]
         })
 
-    # =====================
+
     # Ergebnisse & Plots
-    # =====================
 
     create_confusion_matrix_plot(
         y_true=y_test,
