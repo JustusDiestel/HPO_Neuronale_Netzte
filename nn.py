@@ -104,6 +104,7 @@ def do_nn_training(
     else:
         raise ValueError("Unknown optimizer")
 
+
     for epoch in range(num_epochs):
         model.train()
         train_loss = 0.0
