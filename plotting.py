@@ -131,12 +131,16 @@ def plot_convergence(
 def export_hpo_comparison_csv(
         ga_individual,
         ga_fitness,
+        ga_conv_individual,
+        ga_conv_fitness,
         optuna_trial,
         param_names,
         path="results/hpo_best_comparison.csv"
 ):
     # GA-Parameter als Dict
     ga_params = dict(zip(param_names, ga_individual))
+
+    ga_conv_params = dict(zip(param_names, ga_conv_individual))
 
     # Optuna-Parameter
     optuna_params = optuna_trial.params
@@ -154,6 +158,14 @@ def export_hpo_comparison_csv(
     for p in all_params:
         ga_row[p] = ga_params.get(p, None)
     rows.append(ga_row)
+
+    ga_conv_row = {
+        "method": "GA (convergence)",
+        "accuracy": ga_conv_fitness,
+    }
+    for p in all_params:
+        ga_conv_row[p] = ga_conv_params.get(p, None)
+    rows.append(ga_conv_row)
 
     # --- Optuna ---
     optuna_row = {

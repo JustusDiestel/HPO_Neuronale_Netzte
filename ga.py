@@ -27,7 +27,8 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-fitness_cache = {}
+runs = 1  # Anzahl der Läufe pro Fitness-Evaluation um Stabiliere Ergebnisse zu erhalten
+
 
 
 
@@ -67,11 +68,7 @@ def create_individual():
 
 
  # Fitness is defined as validation accuracy returned by do_nn_training
-def evaluate_fitness(individual, runs=3):
-    key = tuple(individual)
-    if key in fitness_cache:
-        return fitness_cache[key]
-
+def evaluate_fitness(individual, runs):
     scores = []
     for i in range(runs):
         torch.manual_seed(SEED + i)
@@ -80,12 +77,11 @@ def evaluate_fitness(individual, runs=3):
         scores.append(acc)
 
     fitness = sum(scores) / len(scores)
-    fitness_cache[key] = fitness
     return fitness
 
 
 def create_population(pop_size):
-    return [(ind := create_individual(), evaluate_fitness(ind)) for _ in range(pop_size)]
+    return [(ind := create_individual(), evaluate_fitness(ind, runs)) for _ in range(pop_size)]
 
 
 def tournament_selection(population, tournament_size):
@@ -131,17 +127,34 @@ def mutate(individual, mutation_rate):
 
 
 def population_convergence(population):
+    """
+    Konvergenzmaß:
+    - Diskrete Gene: Anteil des häufigsten Allels
+    - Kontinuierliche Gene: 1 - (normierte Varianz)
+    """
     individuals = [ind for ind, _ in population]
     pop_size = len(individuals)
-    num_genes = len(individuals[0])
 
-    freqs = []
-    for g in range(num_genes):
+    # Indizes der Gene
+    discrete_genes = {0, 1, 2, 3, 5, 6, 9, 10}
+    continuous_genes = {4, 7, 8}
+
+    scores = []
+
+    # Diskrete Gene
+    for g in discrete_genes:
         alleles = [ind[g] for ind in individuals]
-        most_common = max(set(alleles), key=alleles.count)
-        freqs.append(alleles.count(most_common) / pop_size)
+        most_common_freq = max(alleles.count(a) for a in set(alleles)) / pop_size
+        scores.append(most_common_freq)
 
-    return sum(freqs) / num_genes
+    # Kontinuierliche Gene
+    for g in continuous_genes:
+        values = np.array([ind[g] for ind in individuals])
+        var = np.var(values)
+        norm_var = var / (var + 1e-8)  # Stabilisierung
+        scores.append(1.0 - norm_var)
+
+    return float(np.mean(scores))
 
 
 
@@ -158,7 +171,7 @@ def genetic_algorithm(
     convergence_threshold=0.90,
 ):
     convergence_time = None
-    convergence_acc = None
+    conv_best_ind = None
     convergence_reached = False
     population = create_population(pop_size)
 
@@ -174,9 +187,9 @@ def genetic_algorithm(
             c1 = mutate(c1, mutation_rate)
             c2 = mutate(c2, mutation_rate)
 
-            new_population.append((c1, evaluate_fitness(c1)))
+            new_population.append((c1, evaluate_fitness(c1, runs)))
             if len(new_population) < pop_size:
-                new_population.append((c2, evaluate_fitness(c2)))
+                new_population.append((c2, evaluate_fitness(c2, runs)))
 
         population = new_population
 
@@ -193,16 +206,16 @@ def genetic_algorithm(
             f"Conv = {convergence:.3f}"
         )
 
-        if convergence >= convergence_threshold and  convergence_reached == False:
+        if convergence >= convergence_threshold and not convergence_reached:
             convergence_time = time.perf_counter() - start_time
-            convergence_acc = best[1]
             print(
                 f"Konvergenz erreicht: {convergence:.3f} >= {convergence_threshold} "
                 f"nach {convergence_time:.2f}s"
             )
+            conv_best_ind = best
             convergence_reached = True
 
-    return population[0], convergence_time, convergence_acc
+    return population[0],conv_best_ind, convergence_time
 
 
 # Main
@@ -215,14 +228,15 @@ if __name__ == "__main__":
     # ----- GA -----
     start_time = time.perf_counter()
     convergence_time = None
-    convergence_acc = None
-    (best_individual, best_fitness), convergence_time, convergence_acc = genetic_algorithm(visualize_data, start_time)
+    (best_individual, best_fitness),(best_individual_conv, conv_fitness), convergence_time = genetic_algorithm(visualize_data, start_time)
     elapsed_time = time.perf_counter() - start_time
+    if best_individual_conv is None:
+        conv_fitness = None
     ga_best_ind_per_generation = []
 
     benchmark_results.append({
         "method": "GA Convergence Stop",
-        "accuracy": convergence_acc,
+        "accuracy": conv_fitness,
         "runtime": convergence_time
     })
 
@@ -247,7 +261,9 @@ if __name__ == "__main__":
     })
 
     ga_best_params = dict(zip(PARAM_NAMES, best_individual))
+    ga_conv_best_params = dict(zip(PARAM_NAMES, best_individual_conv))
     best_params.append(ga_best_params)
+    best_params.append(ga_conv_best_params)
 
     # ----- Optuna -----
     start_time = time.perf_counter()
@@ -305,6 +321,8 @@ if __name__ == "__main__":
     df_hpo = export_hpo_comparison_csv(
         ga_individual=best_individual,
         ga_fitness=best_fitness,
+        ga_conv_individual=best_individual_conv,
+        ga_conv_fitness=conv_fitness,
         optuna_trial=study.best_trial,
         param_names=PARAM_NAMES,
         path="results/hpo_best_comparison.csv"
