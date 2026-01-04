@@ -42,7 +42,7 @@ search_space = {
     'batch_size': {'type': 'int', 'choices': [16, 32, 64, 128, 256]},
     'dropout_rate': {'type': 'float', 'bounds': [0.0, 0.5]},
     'l2_weight_decay': {'type': 'float', 'bounds': [0.0, 1e-2]},
-    'scaler': {'type': 'categorical', 'choices': ['standard', 'minmax', 'none']},
+    'scaler': {'type': 'categorical', 'choices': ['none']},  # Datensatz ist bereits skaliert ansonsten mit  ['standard', 'minmax', 'none']
     'epochs': {'type': 'int', 'bounds': [10, 100]},
 }
 
@@ -149,6 +149,7 @@ def population_convergence(population):
 
 def genetic_algorithm(
     visualize_data,
+    start_time,
     pop_size=30,
     generations=10,
     tournament_size=3,
@@ -156,6 +157,9 @@ def genetic_algorithm(
     elitism=1,
     convergence_threshold=0.90,
 ):
+    convergence_time = None
+    convergence_acc = None
+    convergence_reached = False
     population = create_population(pop_size)
 
     for gen in range(generations):
@@ -189,15 +193,16 @@ def genetic_algorithm(
             f"Conv = {convergence:.3f}"
         )
 
-        if convergence >= convergence_threshold:
-            print(f"Population converged at generation {gen + 1}")
-            break
+        if convergence >= convergence_threshold and  convergence_reached == False:
+            convergence_time = time.perf_counter() - start_time
+            convergence_acc = best[1]
+            print(
+                f"Konvergenz erreicht: {convergence:.3f} >= {convergence_threshold} "
+                f"nach {convergence_time:.2f}s"
+            )
+            convergence_reached = True
 
-    return population[0]
-
-
-
-
+    return population[0], convergence_time, convergence_acc
 
 
 # Main
@@ -209,10 +214,19 @@ if __name__ == "__main__":
 
     # ----- GA -----
     start_time = time.perf_counter()
-    best_individual, best_fitness = genetic_algorithm(visualize_data)
+    convergence_time = None
+    convergence_acc = None
+    (best_individual, best_fitness), convergence_time, convergence_acc = genetic_algorithm(visualize_data, start_time)
     elapsed_time = time.perf_counter() - start_time
     ga_best_ind_per_generation = []
-    df_best_individuals_ga = pd.DataFrame(columns=["generation", "best_accuracy", "avg_accuracy", "convergence"])
+
+    benchmark_results.append({
+        "method": "GA Convergence Stop",
+        "accuracy": convergence_acc,
+        "runtime": convergence_time
+    })
+
+
 
     for i in range(len(visualize_data)):
         gen, best_acc, avg_accuracy, convergence = visualize_data[i]
@@ -222,7 +236,8 @@ if __name__ == "__main__":
             "avg_accuracy": avg_accuracy,
             "convergence": convergence
         })
-    df_best_individuals_ga.to_csv("results/best_individuals_per_generation.csv", index=False)
+    df_ga_best_ind_per_generation = pd.DataFrame(ga_best_ind_per_generation)
+    df_ga_best_ind_per_generation.to_csv("results/best_individuals_per_generation.csv", index=False)
 
 
     benchmark_results.append({

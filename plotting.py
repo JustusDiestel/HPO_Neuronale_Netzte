@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import os
 from sklearn.metrics import confusion_matrix
 import numpy as np
@@ -56,17 +57,26 @@ def plot_accuracy_comparison(
     ylabel="Accuracy",
     save_dir=SAVE_DIR,
     filename="accuracy_comparison.png",
-
 ):
-    plt.figure()
-    plt.bar(methods, accuracies)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.xticks(rotation=45, ha="right")
+    fig, ax = plt.subplots()
+
+    ax.bar(methods, accuracies)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.set_xticks(range(len(methods)))
+    ax.set_xticklabels(methods, rotation=45, ha="right")
+
+    # Y-Achse als Prozent formatieren
+    ax.yaxis.set_major_formatter(
+        mticker.FuncFormatter(lambda y, _: f"{y * 100:.1f}%")
+    )
+
+    fig.tight_layout()
 
     if save_dir is not None:
         path = os.path.join(save_dir, filename)
-        plt.savefig(path, dpi=300, bbox_inches="tight")
+        fig.savefig(path, dpi=300, bbox_inches="tight")
+
     plt.show()
 
 def plot_accuracy_vs_runtime(
