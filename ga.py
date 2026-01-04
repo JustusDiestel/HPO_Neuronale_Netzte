@@ -27,8 +27,6 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-runs = 1  # Anzahl der Läufe pro Fitness-Evaluation um Stabiliere Ergebnisse zu erhalten
-
 
 
 
@@ -221,148 +219,154 @@ def genetic_algorithm(
 # Main
 
 if __name__ == "__main__":
-    visualize_data = []
-    benchmark_results = []
-    best_params = []
+    for runs in [1, 3]:
+        visualize_data = []
+        benchmark_results = []
+        best_params = []
 
-    # ----- GA -----
-    start_time = time.perf_counter()
-    convergence_time = None
-    (best_individual, best_fitness),(best_individual_conv, conv_fitness), convergence_time = genetic_algorithm(visualize_data, start_time)
-    elapsed_time = time.perf_counter() - start_time
-    if best_individual_conv is None:
-        conv_fitness = None
-    ga_best_ind_per_generation = []
+        # ----- GA -----
+        start_time = time.perf_counter()
+        convergence_time = None
+        (best_individual, best_fitness),(best_individual_conv, conv_fitness), convergence_time = genetic_algorithm(visualize_data, start_time)
+        elapsed_time = time.perf_counter() - start_time
+        if best_individual_conv is None:
+            conv_fitness = None
+        ga_best_ind_per_generation = []
 
-    benchmark_results.append({
-        "method": "GA Convergence Stop",
-        "accuracy": conv_fitness,
-        "runtime": convergence_time
-    })
-
-
-
-    for i in range(len(visualize_data)):
-        gen, best_acc, avg_accuracy, convergence = visualize_data[i]
-        ga_best_ind_per_generation.append({
-            "generation": gen,
-            "best_accuracy": best_acc,
-            "avg_accuracy": avg_accuracy,
-            "convergence": convergence
-        })
-    df_ga_best_ind_per_generation = pd.DataFrame(ga_best_ind_per_generation)
-    df_ga_best_ind_per_generation.to_csv("results/best_individuals_per_generation.csv", index=False)
-
-
-    benchmark_results.append({
-        "method": "GA (NN)",
-        "accuracy": best_fitness,
-        "runtime": elapsed_time
-    })
-
-    ga_best_params = dict(zip(PARAM_NAMES, best_individual))
-    ga_conv_best_params = dict(zip(PARAM_NAMES, best_individual_conv))
-    best_params.append(ga_best_params)
-    best_params.append(ga_conv_best_params)
-
-    # ----- Optuna -----
-    start_time = time.perf_counter()
-    study = optuna.create_study(
-        direction="maximize",
-        sampler=optuna.samplers.TPESampler(seed=SEED)
-    )
-    study.optimize(optuna_objective, n_trials=30, show_progress_bar=True)
-    elapsed_time = time.perf_counter() - start_time
-
-    benchmark_results.append({
-        "method": "Optuna (NN)",
-        "accuracy": study.best_value,
-        "runtime": elapsed_time
-    })
-
-
-    best_params.append(study.best_params)
-
-    # ----- Sklearn -----
-    sk_benchmark = SklearnBenchmark(
-        X_train_df,
-        y_train,
-        X_test_df,
-        y_test
-    )
-
-    sk_results = sk_benchmark.run()
-
-    for name, res in sk_results.items():
         benchmark_results.append({
-            "method": name,
-            "accuracy": res["accuracy"],
-            "runtime": res["runtime"]
+            "method": "GA Convergence Stop",
+            "accuracy": conv_fitness,
+            "runtime": convergence_time
         })
 
 
-    # Ergebnisse & Plots
 
-    create_confusion_matrix_plot(
-        y_true=y_test,
-        y_pred=do_nn_training(
-            best_individual,
-            return_predictions=True,
-            train_final_model=True
-        ),
-        class_names= class_names,
-    )
-
-    plot_convergence(
-        visualize_data=visualize_data,
-    )
+        for i in range(len(visualize_data)):
+            gen, best_acc, avg_accuracy, convergence = visualize_data[i]
+            ga_best_ind_per_generation.append({
+                "generation": gen,
+                "best_accuracy": best_acc,
+                "avg_accuracy": avg_accuracy,
+                "convergence": convergence
+            })
+        df_ga_best_ind_per_generation = pd.DataFrame(ga_best_ind_per_generation)
+        df_ga_best_ind_per_generation.to_csv(f"results/best_individuals_per_generation_runs_{runs}.csv", index=False)
 
 
-    df_hpo = export_hpo_comparison_csv(
-        ga_individual=best_individual,
-        ga_fitness=best_fitness,
-        ga_conv_individual=best_individual_conv,
-        ga_conv_fitness=conv_fitness,
-        optuna_trial=study.best_trial,
-        param_names=PARAM_NAMES,
-        path="results/hpo_best_comparison.csv"
-    )
+        benchmark_results.append({
+            "method": "GA (NN)",
+            "accuracy": best_fitness,
+            "runtime": elapsed_time
+        })
 
-    df_comp_best_params = pd.DataFrame(best_params)
+        ga_best_params = dict(zip(PARAM_NAMES, best_individual))
+        ga_conv_best_params = dict(zip(PARAM_NAMES, best_individual_conv))
+        best_params.append(ga_best_params)
+        best_params.append(ga_conv_best_params)
 
-    df_results = pd.DataFrame(benchmark_results)
-    print(df_results)
-    df_results.to_csv("results/benchmark_results.csv", index=False)
+        # ----- Optuna -----
+        start_time = time.perf_counter()
+        study = optuna.create_study(
+            direction="maximize",
+            sampler=optuna.samplers.TPESampler(seed=SEED)
+        )
+        study.optimize(optuna_objective, n_trials=30, show_progress_bar=True)
+        elapsed_time = time.perf_counter() - start_time
 
-    generations = [g for g, _, _, _ in visualize_data]
-    best_acc    = [b for _, b, _, _ in visualize_data]
-    avg_acc     = [a for _, _, a, _ in visualize_data]
+        benchmark_results.append({
+            "method": "Optuna (NN)",
+            "accuracy": study.best_value,
+            "runtime": elapsed_time
+        })
 
-    plot_best_accuracy(
-        generations,
-        best_acc,
-        title="Best Accuracy per Generation (GA NN)",
-        filename="best_accuracy_ga_nn.png"
-    )
 
-    plot_avg_accuracy(
-        generations,
-        avg_acc,
-        title="Average Accuracy per Generation (GA NN)",
-        filename="avg_accuracy_ga_nn.png"
-    )
+        best_params.append(study.best_params)
 
-    plot_accuracy_comparison(
-        df_results["method"].tolist(),
-        df_results["accuracy"].tolist(),
-        title="Accuracy Comparison",
-        filename="accuracy_comparison.png"
-    )
+        # ----- Sklearn -----
+        sk_benchmark = SklearnBenchmark(
+            X_train_df,
+            y_train,
+            X_test_df,
+            y_test
+        )
 
-    plot_accuracy_vs_runtime(
-        df_results["runtime"].tolist(),
-        df_results["accuracy"].tolist(),
-        df_results["method"].tolist(),
-        title="Accuracy vs Runtime",
-        filename="accuracy_vs_runtime.png"
-    )
+        sk_results = sk_benchmark.run()
+
+        for name, res in sk_results.items():
+            benchmark_results.append({
+                "method": name,
+                "accuracy": res["accuracy"],
+                "runtime": res["runtime"]
+            })
+
+
+        # Ergebnisse & Plots
+
+        create_confusion_matrix_plot(
+            y_true=y_test,
+            y_pred=do_nn_training(
+                best_individual,
+                return_predictions=True,
+                train_final_model=True
+            ),
+            class_names= class_names,
+        )
+
+        plot_convergence(
+            visualize_data=visualize_data,
+            title=f"GA Convergence (runs={runs})",
+            filename=f"convergence_runs_{runs}.png"
+        )
+
+
+        df_hpo = export_hpo_comparison_csv(
+            ga_individual=best_individual,
+            ga_fitness=best_fitness,
+            ga_conv_individual=best_individual_conv,
+            ga_conv_fitness=conv_fitness,
+            optuna_trial=study.best_trial,
+            param_names=PARAM_NAMES,
+            path=f"results/hpo_best_comparison_runs_{runs}.csv"
+        )
+
+        df_comp_best_params = pd.DataFrame(best_params)
+
+        df_results = pd.DataFrame(benchmark_results)
+        print(df_results)
+        df_results.to_csv(
+            f"results/benchmark_results_runs_{runs}.csv",
+            index=False
+        )
+        generations = [g for g, _, _, _ in visualize_data]
+        best_acc    = [b for _, b, _, _ in visualize_data]
+        avg_acc     = [a for _, _, a, _ in visualize_data]
+
+        plot_best_accuracy(
+            generations,
+            best_acc,
+            title=f"Best Accuracy per Generation (GA NN, runs={runs})",
+            filename=f"best_accuracy_ga_nn_runs_{runs}.png"
+
+        )
+
+        plot_avg_accuracy(
+            generations,
+            avg_acc,
+            title=f"Average Accuracy per Generation (GA NN, runs={runs})",
+            filename=f"avg_accuracy_ga_nn_runs_{runs}.png"
+        )
+
+        plot_accuracy_comparison(
+            df_results["method"].tolist(),
+            df_results["accuracy"].tolist(),
+            title=f"Accuracy Comparison (runs={runs})",
+            filename=f"accuracy_comparison_runs_{runs}.png"
+        )
+
+        plot_accuracy_vs_runtime(
+            df_results["runtime"].tolist(),
+            df_results["accuracy"].tolist(),
+            df_results["method"].tolist(),
+            title=f"Accuracy vs Runtime (runs={runs})",
+            filename=f"accuracy_vs_runtime_runs_{runs}.png"
+        )

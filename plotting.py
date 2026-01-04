@@ -107,11 +107,11 @@ def plot_accuracy_vs_runtime(
 
 def plot_convergence(
     visualize_data,
-    title="Population Convergence",
+    title="Convergence over Generations",
+    filename="convergence.png",
     xlabel="Generation",
     ylabel="Convergence",
-    save_dir=SAVE_DIR,
-    filename="convergence.png"
+    save_dir=SAVE_DIR
 ):
     generations = [g for g, _, _, _ in visualize_data]
     convergence  = [c for _, _, _, c in visualize_data]
