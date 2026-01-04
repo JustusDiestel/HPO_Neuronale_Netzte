@@ -222,6 +222,7 @@ if __name__ == "__main__":
         benchmark_results = []
         best_params = []
 
+
         # ----- GA -----
         start_time = time.perf_counter()
         convergence_time = None
