@@ -4,11 +4,10 @@ import math
 from config import SEED
 import torch
 import random
-from ga import runs
 from nn import do_nn_training
 
 
-def optuna_objective(trial):
+def optuna_objective(trial, runs):
     individual = [
         trial.suggest_int("num_layers", 1, 4),
         trial.suggest_categorical("base_units", [32, 64, 128]),
@@ -27,9 +26,7 @@ def optuna_objective(trial):
     # wie bei GA
     scores = []
 
-    for i in range(runs):
-        torch.manual_seed(SEED + i)
-        random.seed(SEED + i)
+    for _ in range(runs):
         scores.append(do_nn_training(individual))
 
     return float(np.mean(scores))

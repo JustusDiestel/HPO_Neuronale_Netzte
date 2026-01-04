@@ -68,9 +68,7 @@ def create_individual():
  # Fitness is defined as validation accuracy returned by do_nn_training
 def evaluate_fitness(individual, runs):
     scores = []
-    for i in range(runs):
-        torch.manual_seed(SEED + i)
-        random.seed(SEED + i)
+    for _ in range(runs):
         acc = do_nn_training(individual)
         scores.append(acc)
 
@@ -270,7 +268,11 @@ if __name__ == "__main__":
             direction="maximize",
             sampler=optuna.samplers.TPESampler(seed=SEED)
         )
-        study.optimize(optuna_objective, n_trials=30, show_progress_bar=True)
+        study.optimize(
+            lambda trial: optuna_objective(trial, runs),
+            n_trials=30,
+            show_progress_bar=True
+        )
         elapsed_time = time.perf_counter() - start_time
 
         benchmark_results.append({
